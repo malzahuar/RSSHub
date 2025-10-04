@@ -2942,6 +2942,9 @@
   "/gaoyu/blog": [
     "nczitzk"
   ],
+  "/gc.ca/pm/:language?": [
+    "elibroftw"
+  ],
   "/gcores/articles": [
     "nczitzk"
   ],
@@ -4176,6 +4179,9 @@
   ],
   "/imop/tianshu": [
     "zhkgo"
+  ],
+  "/indianexpress/section/:id{.+}?": [
+    "nczitzk"
   ],
   "/indiansinkuwait/latest": [
     "TonyRL"

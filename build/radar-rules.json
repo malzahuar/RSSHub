@@ -15823,6 +15823,22 @@
       }
     ]
   },
+  "pm.gc.ca": {
+    "_name": "Prime Minister of Canada",
+    ".": [
+      {
+        "title": "News",
+        "docs": "https://docs.rsshub.app/routes/government",
+        "source": [
+          "/",
+          "/:language",
+          "/:language/news",
+          "/:language/nouvelles"
+        ],
+        "target": "/gc.ca/pm/:language"
+      }
+    ]
+  },
   "gcores.com": {
     "_name": "机核网",
     "www": [
@@ -22326,6 +22342,19 @@
           "/"
         ],
         "target": "/imop/tianshu"
+      }
+    ]
+  },
+  "indianexpress.com": {
+    "_name": "The Indian Express",
+    ".": [
+      {
+        "title": "Section",
+        "docs": "https://docs.rsshub.app/routes/new-media",
+        "source": [
+          "/section/:id"
+        ],
+        "target": "/indianexpress/section/:id"
       }
     ]
   },
