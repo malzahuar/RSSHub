@@ -74406,9 +74406,11 @@ export default {
         },
         "name": "Search",
         "maintainers": [
-          "yana9i, Tsuyumi25"
+          "yana9i",
+          "Tsuyumi25"
         ],
         "url": "jp.mercari.com",
+        "description": "::: warning\n此路由僅支援 `jp.mercari.com`，不支援 `tw.mercari.com` 和 `hk.mercari.com`。\n\n**注意：** 不同站點的查詢參數格式不同\n- 日本: `keyword=シャツ&order=desc&sort=created_time&status=on_sale`\n- 台灣: `keyword=シャツ&sort=new&status=in-stock&availability=1`\n:::",
         "location": "search.ts",
         "module": () => import('@/routes/mercari/search.ts')
       }
