@@ -1,7 +1,9 @@
-import { type DataItem, type Route, ViewType } from '@/types';
-import type { Context } from 'hono';
-import ofetch from '@/utils/ofetch';
 import { load } from 'cheerio';
+import type { Context } from 'hono';
+
+import type { DataItem, Route } from '@/types';
+import { ViewType } from '@/types';
+import ofetch from '@/utils/ofetch';
 
 const dateStringRegex = /(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})/;
 const timeStringRegexes = [
@@ -51,12 +53,12 @@ async function handler(ctx: Context) {
         const list = $('li.clearfix');
 
         if (list.length === 0) {
-            return [] as DataItem[];
+            return [];
         }
 
         const pageItems = list
             .toArray()
-            .map((event) => {
+            .map((event): DataItem => {
                 // extract event name
                 const eventName = $('div.event > h4 > a', event).text();
 
@@ -105,9 +107,9 @@ async function handler(ctx: Context) {
                     title: eventName,
                     description: eventDescription,
                     link,
-                } as DataItem;
+                };
             })
-            .filter(Boolean) as DataItem[];
+            .filter(Boolean);
 
         return pageItems;
     });

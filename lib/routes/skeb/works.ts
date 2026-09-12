@@ -1,10 +1,13 @@
-import { Data, DataItem, Route } from '@/types';
+import { FetchError } from 'ofetch';
+
 import { config } from '@/config';
 import ConfigNotFoundError from '@/errors/types/config-not-found';
-import { baseUrl, processWork } from './utils';
+import type { Data, Route } from '@/types';
 import cache from '@/utils/cache';
-import ofetch from '@/utils/ofetch';
 import logger from '@/utils/logger';
+import ofetch from '@/utils/ofetch';
+
+import { baseUrl, processWork } from './utils';
 
 export const route: Route = {
     path: '/works/:username',
@@ -66,18 +69,14 @@ async function handler(ctx): Promise<Data> {
             throw new Error('Invalid data received from API');
         }
 
-        return data.map((item) => processWork(item)).filter(Boolean);
+        return data.map((item) => processWork(item)).filter((item) => item !== null);
     });
 
     return {
         title: `Skeb - ${username}'s Works`,
         link: `${baseUrl}/${username}`,
-        item: items as DataItem[],
+        item: items,
     };
-}
-
-function hasResponseData(error: unknown): error is { response: { _data: string } } {
-    return error !== null && typeof error === 'object' && 'response' in error && typeof (error as { response?: { _data?: unknown } }).response?._data === 'string';
 }
 
 async function ensureRequestKey(url: string) {
@@ -94,8 +93,8 @@ async function ensureRequestKey(url: string) {
             },
         });
     } catch (error) {
-        if (hasResponseData(error)) {
-            const newRequestKey = error.response?._data?.match(/request_key=(.*?);/)?.[1];
+        if (error instanceof FetchError && error.data) {
+            const newRequestKey = String(error.data).match(/request_key=(.*?);/)?.[1];
             if (newRequestKey) {
                 cache.set('skeb:request_key', newRequestKey);
                 logger.debug(`Retrieved new request_key: ${newRequestKey}`);
