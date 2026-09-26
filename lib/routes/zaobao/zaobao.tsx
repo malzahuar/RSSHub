@@ -1,11 +1,13 @@
-import { ImageData } from './util';
+import { raw } from 'hono/html';
+
+import type { ImageData } from './util';
 
 function zaobao({ imageDataArray, articleBody }) {
     return (
         <>
             {imageDataArray.map((imageData: ImageData) =>
                 imageData.type === 'normalHTML' ? (
-                    <div dangerouslySetInnerHTML={{ __html: imageData.html }} />
+                    <div>{raw(imageData.html)}</div>
                 ) : (
                     imageData.type === 'data' && (
                         <figure>
@@ -15,7 +17,7 @@ function zaobao({ imageDataArray, articleBody }) {
                     )
                 )
             )}
-            {articleBody && <div dangerouslySetInnerHTML={{ __html: articleBody }} />}
+            {articleBody && <div>{raw(articleBody)}</div>}
         </>
     );
 }

@@ -1,4 +1,6 @@
-import { Route, ViewType } from '@/types';
+import { config } from '@/config';
+import type { Route } from '@/types';
+import { ViewType } from '@/types';
 import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
 
@@ -39,7 +41,11 @@ export const route: Route = {
 async function handler(ctx) {
     const type = ctx.req.param('type');
 
-    const { data } = await got(`https://www.v2ex.com/api/topics/${type}.json`);
+    const { data } = await got(`https://www.v2ex.com/api/topics/${type}.json`, {
+        headers: {
+            'user-agent': config.ua,
+        },
+    });
 
     let title;
     if (type === 'hot') {

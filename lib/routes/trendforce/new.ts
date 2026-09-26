@@ -1,16 +1,17 @@
-import { type Data, type DataItem, type Route, ViewType } from '@/types';
+import type { CheerioAPI } from 'cheerio';
+import { load } from 'cheerio';
+import type { Context } from 'hono';
 
+import type { Data, DataItem, Language, Route } from '@/types';
+import { ViewType } from '@/types';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
 
-import { type CheerioAPI, load } from 'cheerio';
-import { type Context } from 'hono';
-
 export const handler = async (ctx: Context): Promise<Data> => {
-    const limit: number = Number.parseInt(ctx.req.query('limit') ?? '10', 10);
+    const limit = Number(ctx.req.query('limit') ?? '10');
 
     const apiSlug = 'wp-json/wp/v2';
-    const baseUrl: string = 'https://www.trendforce.com';
+    const baseUrl = 'https://www.trendforce.com';
     const targetUrl: string = new URL('news/', baseUrl).href;
     const apiUrl = new URL(`${apiSlug}/posts`, targetUrl).href;
 
@@ -23,7 +24,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
 
     const targetResponse = await ofetch(targetUrl);
     const $: CheerioAPI = load(targetResponse);
-    const language = $('html').attr('lang') ?? 'en';
+    const language = ($('html').attr('lang') ?? 'en') as Language;
 
     const items: DataItem[] = response.slice(0, limit).map((item): DataItem => {
         const title: string = item.title?.rendered ?? item.title;
