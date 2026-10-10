@@ -1,8 +1,10 @@
-import { Route, DataItem, Data, ViewType } from '@/types';
+import { load } from 'cheerio';
+
+import type { Data, DataItem, Route } from '@/types';
+import { ViewType } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
 import parser from '@/utils/rss-parser';
-import { load } from 'cheerio';
 
 export const route: Route = {
     path: '/blog',
@@ -33,11 +35,18 @@ export const route: Route = {
 
 async function handler() {
     const feed = await parser.parseURL('https://zed.dev/blog.rss');
+    if (!feed.title) {
+        throw new Error('Zed blog feed has no title');
+    }
 
     const items = await Promise.all(
-        feed.items.map((item) =>
-            cache.tryGet(item.link as string, async () => {
-                const data = await ofetch(item.link as string);
+        feed.items.map((item) => {
+            const { link, title } = item;
+            if (!link || !title) {
+                throw new Error('Zed blog feed item has no link or title');
+            }
+            return cache.tryGet(link, async () => {
+                const data = await ofetch(link);
                 const $ = load(data);
 
                 const article = $('article');
@@ -48,21 +57,18 @@ async function handler() {
                 article.find('[class]').removeAttr('class');
                 article.find('[id]').removeAttr('id');
                 article.find('[preload]').removeAttr('preload');
-                article.find('script').remove();
                 article.find('figcaption').remove();
                 article.find('aside').remove(); // remove Looking and hiring part
 
-                item.content = article.html() as string;
-
                 return {
-                    title: item.title,
-                    link: item.link,
-                    description: item.content,
+                    title,
+                    link,
+                    description: article.html(),
                     pubDate: item.pubDate,
                     author: item.creator,
-                } as DataItem;
-            })
-        )
+                } satisfies DataItem;
+            });
+        })
     );
 
     return {
@@ -71,5 +77,5 @@ async function handler() {
         description: feed.description,
         item: items,
         language: 'en',
-    } as Data;
+    } satisfies Data;
 }

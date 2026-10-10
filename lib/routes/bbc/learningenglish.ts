@@ -1,9 +1,10 @@
+import { load } from 'cheerio';
+import type { Context } from 'hono';
+
 import type { DataItem, Route } from '@/types';
 import cache from '@/utils/cache';
-import { load } from 'cheerio';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
-import { type Context } from 'hono';
 
 const channelMap = {
     'take-away-english': '随身英语',
@@ -53,8 +54,8 @@ async function handler(ctx: Context) {
 
     // get rest ul article links
     const restItems: DataItem[] = $('.threecol li')
-        .toArray()
         .slice(0, 10)
+        .toArray()
         .map((article) => {
             const $article = load(article);
 
@@ -77,7 +78,7 @@ async function handler(ctx: Context) {
 
                 const $content = load(detailResponse);
 
-                item.description = $content('.widget-richtext').html() ?? undefined;
+                item.description = $content('.widget-richtext').html();
                 return item;
             });
         })

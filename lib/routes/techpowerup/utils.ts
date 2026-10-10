@@ -1,7 +1,8 @@
-import ofetch from '@/utils/ofetch';
 import { load } from 'cheerio';
-import { parseDate } from '@/utils/parse-date';
+
 import md5 from '@/utils/md5';
+import ofetch from '@/utils/ofetch';
+import { parseDate } from '@/utils/parse-date';
 
 const baseUrl = 'https://www.techpowerup.com';
 
@@ -23,10 +24,12 @@ const fixImages = ($) => {
 
 const hdImage = (img) => {
     img.attribs.src = img.attribs.src.replace('_thm', '').replace('_small', '');
-    if (img.parentNode.name === 'a' && img.parentNode.attribs['data-width'] && img.parentNode.attribs['data-height']) {
-        img.attribs.width = img.parentNode.attribs['data-width'];
-        img.attribs.height = img.parentNode.attribs['data-height'];
+    if (!(img.parentNode.name === 'a' && img.parentNode.attribs['data-width'] && img.parentNode.attribs['data-height'])) {
+        return;
     }
+
+    img.attribs.width = img.parentNode.attribs['data-width'];
+    img.attribs.height = img.parentNode.attribs['data-height'];
 };
 const removeFigureStyle = (f) => {
     delete f.attribs.style;
@@ -73,4 +76,4 @@ const parseReviews = async ($, item) => {
     item.description = content.html();
 };
 
-export { baseUrl, headers, fixImages, hdImage, parseReviews, removeFigureStyle, removeResponsiveStyle };
+export { baseUrl, fixImages, hdImage, headers, parseReviews, removeFigureStyle, removeResponsiveStyle };

@@ -1,6 +1,6 @@
 import { parseDate } from '@/utils/parse-date';
 
-export const eventTypeMapping: Record<string, string> = {
+export const eventTypeMapping = {
     create: 'CreateEvent',
     delete: 'DeleteEvent',
     issuecomm: 'IssueCommentEvent',
@@ -22,9 +22,9 @@ export const eventTypeMapping: Record<string, string> = {
 function formatEventItem(event: any) {
     const { id, type, actor, repo, payload, created_at } = event;
 
-    let title = '';
-    let description = '';
-    let link = '';
+    let title: string;
+    let description: string;
+    let link: string;
 
     switch (type) {
         case 'PushEvent': {
@@ -34,7 +34,7 @@ function formatEventItem(event: any) {
             description = `Pushed ${commitCount}to ${branch} in ${repo.name}`;
 
             if (payload.commits) {
-                link = payload.commits.at(-1).url.replace('api.github.com/repos/', 'github.com/').replace('/commits/', '/commit/');
+                link = payload.commits.at(-1).url.replace(/https:\/\/api\.github\.com\/repos\/([^/]+)\/([^/]+)\/commits\/(\d+)/, 'https://github.com/$1/$2/commit/$3');
                 description += `<br><strong>Latest commit:</strong> ${payload.commits.at(-1).message}`;
             } else {
                 link = `https://github.com/${repo.name}/commit/${payload.head}`;
@@ -43,8 +43,13 @@ function formatEventItem(event: any) {
         }
         case 'PullRequestEvent':
             title = `${actor.login} ${payload.action} a pull request in ${repo.name}`;
-            description = `PR: ${payload.pull_request?.url || 'Unknown'}`;
-            link = payload.pull_request?.url || `https://github.com/${repo.name}`;
+            if (payload.pull_request) {
+                link = payload.pull_request.url.replace(/https:\/\/api\.github\.com\/repos\/([^/]+)\/([^/]+)\/pulls\/(\d+)/, 'https://github.com/$1/$2/pull/$3');
+                description = `PR: ${link}`;
+            } else {
+                link = `https://github.com/${repo.name}`;
+                description = 'PR: Unknown';
+            }
             break;
         case 'PullRequestReviewCommentEvent':
             title = `${actor.login} commented on a pull request review in ${repo.name}`;
@@ -106,15 +111,17 @@ function formatEventItem(event: any) {
             description = `Member ${payload.action} in repository ${repo.name}`;
             link = `https://github.com/${repo.name}`;
             break;
-        case 'GollumEvent':
+        case 'GollumEvent': {
             title = `${actor.login} update the wiki in ${repo.name}`;
             description = '<ul>';
-            for (const page of payload.pages ?? []) {
+            const pages = payload.pages ?? [];
+            for (const page of pages) {
                 description += `<li>Page <a href=${page.html_url}>${page.page_name}</a> ${page.action} ${page.summary ? `: ${page.summary}` : ''}</li>`;
             }
-            description += `</ul>`;
+            description += '</ul>';
             link = `https://github.com/${repo.name}`;
             break;
+        }
         case 'DiscussionEvent':
             title = `${actor.login} ${payload.action} a discussion ${repo.discussion?.title ?? ''} on ${repo.name}`;
             description = payload.discussion?.body ?? 'Unknown';

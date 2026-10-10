@@ -1,18 +1,19 @@
-import { type Data, type Route, ViewType } from '@/types';
+import type { CheerioAPI } from 'cheerio';
+import { load } from 'cheerio';
+import type { Context } from 'hono';
 
+import type { Data, DataItem, Language, Route } from '@/types';
+import { ViewType } from '@/types';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
 
-import { type CheerioAPI, load } from 'cheerio';
-import { type Context } from 'hono';
-
 export const handler = async (ctx: Context): Promise<Data> => {
     const { filter } = ctx.req.param();
-    const limit: number = Number.parseInt(ctx.req.query('limit') ?? '50', 10);
+    const limit = Number(ctx.req.query('limit') ?? '50');
 
     const apiSlug = 'wp-json/wp/v2';
 
-    const baseUrl: string = 'https://jbma.net';
+    const baseUrl = 'https://jbma.net';
     const apiUrl = new URL(`${apiSlug}/report`, baseUrl).href;
     let targetUrl: string = new URL('report/', baseUrl).href;
 
@@ -40,7 +41,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
             per_page: limit,
             ...(taxonomy && searchId
                 ? {
-                      [taxonomy as string]: searchId,
+                      [taxonomy]: searchId,
                   }
                 : {
                       search: keyword,
@@ -50,7 +51,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
 
     const targetResponse = await ofetch(targetUrl);
     const $: CheerioAPI = load(targetResponse);
-    const language = $('html').attr('lang') ?? 'ja';
+    const language = ($('html').attr('lang') ?? 'ja') as Language;
 
     const postIds: number[] = [];
     const regExp = new RegExp(String.raw`^${baseUrl.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)}/?(?:[a-zA-Z0-9-]+/)*\?p=\d+$`);
@@ -62,7 +63,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
         }
     }
 
-    const mediaMap: Map<number, any> = new Map();
+    const mediaMap = new Map<number, any>();
     if (postIds.length > 0) {
         const mediaApiUrl = new URL(`${apiSlug}/media`, baseUrl).href;
         const mediaResponse = await ofetch(mediaApiUrl, {
@@ -73,13 +74,15 @@ export const handler = async (ctx: Context): Promise<Data> => {
         });
 
         for (const media of mediaResponse) {
-            if (media.parent) {
-                const existing = mediaMap.get(media.parent);
-                if (existing) {
-                    existing.push(media);
-                } else {
-                    mediaMap.set(media.parent, [media]);
-                }
+            if (!media.parent) {
+                continue;
+            }
+
+            const existing = mediaMap.get(media.parent);
+            if (existing) {
+                existing.push(media);
+            } else {
+                mediaMap.set(media.parent, [media]);
             }
         }
     }
@@ -131,7 +134,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
             linkUrl = new URL(`report/${item.slug}`, baseUrl).href;
         }
 
-        let processedItem = {
+        let processedItem: DataItem = {
             title,
             description,
             pubDate: pubDate ? parseDate(pubDate) : undefined,
@@ -331,7 +334,7 @@ To subscribe to [Metals Forcus](https://jbma.net/cat_report/metals-forcus/), whe
                 const type: string = params.type;
                 const name: string = params.name;
 
-                if (type === 'report' || type === 'cat_report' || type === 'tag_report') {
+                if (['report', 'cat_report', 'tag_report'].includes(type)) {
                     return `/${type}${name ? `/${name}` : ''}`;
                 }
 

@@ -1,8 +1,9 @@
+import { load } from 'cheerio';
+import type { Context } from 'hono';
+
 import type { Data, DataItem, Route } from '@/types';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
-import { load } from 'cheerio';
-import type { Context } from 'hono';
 
 export const route: Route = {
     path: '/pm/:language?',
@@ -46,7 +47,7 @@ export const route: Route = {
         const $ = load(replaceItem.data);
         const items: DataItem[] = $('.news-row')
             .toArray()
-            .map((element) => {
+            .map((element): DataItem | null => {
                 const $element = $(element);
                 const $titleLink = $element.find('.title a');
                 const $category = $element.find('.category');
@@ -63,7 +64,7 @@ export const route: Route = {
                         link,
                         category: [category],
                         pubDate: date ? parseDate(date) : undefined,
-                    } as DataItem;
+                    };
                 }
                 return null;
             })

@@ -1,16 +1,17 @@
-import { Route, type Data } from '@/types';
+import type { Context } from 'hono';
+
+import InvalidParameterError from '@/errors/types/invalid-parameter';
+import type { Data, Route } from '@/types';
+import logger from '@/utils/logger';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
-import InvalidParameterError from '@/errors/types/invalid-parameter';
-import logger from '@/utils/logger';
-import { Context } from 'hono';
 
 type WordpressPost = {
     id: number;
     date: string;
     date_gmt?: string;
     link: string;
-    title?: { rendered?: string };
+    title: { rendered: string };
     excerpt?: { rendered?: string };
     content?: { rendered?: string };
     _embedded?: {
@@ -23,7 +24,7 @@ const ROOT_URL = 'https://baselang.com';
 const API_BASE = `${ROOT_URL}/wp-json/wp/v2`;
 
 // Supported categories and their WP IDs
-const CATEGORY_SLUG_TO_ID: Record<string, number> = {
+const CATEGORY_SLUG_TO_ID = {
     'advanced-grammar': 5,
     'basic-grammar': 4,
     company: 8,
@@ -38,7 +39,7 @@ const CATEGORY_SLUG_TO_ID: Record<string, number> = {
     travel: 13,
     uncategorized: 1,
     vocabulary: 12,
-};
+} satisfies Record<string, number>;
 
 const CATEGORY_OPTIONS = Object.keys(CATEGORY_SLUG_TO_ID).map((slug) => ({ label: slug, value: slug }));
 
@@ -113,5 +114,5 @@ async function handler(ctx: Context): Promise<Data> {
         link,
         language: 'en',
         item: items,
-    } as Data;
+    };
 }

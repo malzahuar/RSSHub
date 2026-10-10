@@ -1,35 +1,65 @@
-import { type Data, type DataItem, type Route, ViewType } from '@/types';
+import type { Cheerio, CheerioAPI } from 'cheerio';
+import { load } from 'cheerio';
+import type { Element } from 'domhandler';
+import type { Context } from 'hono';
+import iconv from 'iconv-lite';
 
+import type { Data, DataItem, Language, Route } from '@/types';
+import { ViewType } from '@/types';
 import cache from '@/utils/cache';
 import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
 
-import { type CheerioAPI, type Cheerio, load } from 'cheerio';
-import type { Element } from 'domhandler';
-import { type Context } from 'hono';
-import iconv from 'iconv-lite';
+const getResolution = (text: string): number => {
+    const resolutions = text
+        .matchAll(/(?:^|\D)(4320|2160|1440|1080|720|576|480)[pi]?(?!\d)/gi)
+        .toArray()
+        .map((match) => Number(match[1]));
+    if (/\b8k\b/i.test(text)) {
+        resolutions.push(4320);
+    }
+    if (/\b4k\b/i.test(text)) {
+        resolutions.push(2160);
+    }
+    return Math.max(0, ...resolutions);
+};
+
+const getBestMagnet = ($: CheerioAPI): Cheerio<Element> => {
+    const magnets = $('td a[href^="magnet"]');
+    let best: Element | undefined;
+    let bestResolution = 0;
+    for (const element of magnets.toArray()) {
+        const $element = $(element);
+        const fileName = new URL($element.attr('href')!).searchParams.get('dn') ?? '';
+        const resolution = getResolution(`${$element.text()} ${fileName}`);
+        if (resolution < bestResolution) {
+            continue;
+        }
+        best = element;
+        bestResolution = resolution;
+    }
+    return best ? $(best) : magnets;
+};
 
 export const handler = async (ctx: Context): Promise<Data> => {
     const { category = 'dy' } = ctx.req.param();
-    const limit: number = Number.parseInt(ctx.req.query('limit') ?? '25', 10);
+    const limit = Number(ctx.req.query('limit') ?? '25');
 
-    const encoding: string = 'gb2312';
+    const encoding = 'gb2312';
 
-    const baseUrl: string = 'https://www.hao6v.me';
-    const targetUrl: string = new URL(category.startsWith('gvod') ? `${category}.html` : category, baseUrl).href;
+    const baseUrl = 'https://www.hao6v.me';
+    const targetUrl = `${baseUrl}/${category.startsWith('gvod') ? `${category}.html` : category}`;
 
     const response = await ofetch(targetUrl, {
         responseType: 'arrayBuffer',
     });
     const $: CheerioAPI = load(iconv.decode(Buffer.from(response), encoding));
-    const language = $('html').attr('lang') ?? 'zh';
+    const language = ($('html').attr('lang') ?? 'zh') as Language;
 
-    let items: DataItem[] = [];
-
-    items = $('ul.list li')
+    let items: DataItem[] = $('ul.list li')
         .slice(0, limit)
         .toArray()
-        .map((el): Element => {
+        .map((el) => {
             const $el: Cheerio<Element> = $(el);
 
             const title: string = $el.find('a').text();
@@ -38,7 +68,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
                 .text()
                 .replaceAll(/(\[|\])/g, '');
             const linkUrl: string | undefined = $el.find('a').attr('href');
-            const guid: string = `${linkUrl}#${title}`;
+            const guid = `${linkUrl}#${title}`;
             const upDatedStr: string | undefined = pubDateStr;
 
             const processedItem: DataItem = {
@@ -61,7 +91,7 @@ export const handler = async (ctx: Context): Promise<Data> => {
             }
 
             return cache.tryGet(item.link, async (): Promise<DataItem> => {
-                const detailResponse = await ofetch(item.link, {
+                const detailResponse = await ofetch(item.link!, {
                     responseType: 'arrayBuffer',
                 });
                 const $$: CheerioAPI = load(iconv.decode(Buffer.from(detailResponse), encoding));
@@ -74,10 +104,10 @@ export const handler = async (ctx: Context): Promise<Data> => {
                 $$('div#endText div.downtps').remove();
 
                 const title: string = $$('h1').text();
-                const description: string | undefined = $$('div#endText').html() ?? undefined;
+                const description = $$('div#endText').html();
                 const pubDateStr: string | undefined = item.link?.match(/\/(\d{4}-\d{2}-\d{2})\/\d+\.html/)?.[1];
                 const categoryEls: Element[] = $$('div#endText p a').toArray();
-                const categories: string[] = [...new Set(categoryEls.map((el) => $$(el).text()?.trim()).filter(Boolean))];
+                const categories: string[] = [...new Set(categoryEls.map((el) => $$(el).text().trim()).filter(Boolean))];
                 const image: string | undefined = $$('div#endText p img').attr('src');
                 const upDatedStr: string | undefined = pubDateStr;
 
@@ -96,11 +126,11 @@ export const handler = async (ctx: Context): Promise<Data> => {
                     language,
                 };
 
-                const $enclosureEl: Cheerio<Element> = $$('td a[href^="magnet"]').last();
+                const $enclosureEl = getBestMagnet($$);
                 const enclosureUrl: string | undefined = $enclosureEl.attr('href');
 
                 if (enclosureUrl) {
-                    const enclosureType: string = 'application/x-bittorrent';
+                    const enclosureType = 'application/x-bittorrent';
                     const enclosureTitle: string = $enclosureEl.text();
 
                     processedItem = {
@@ -310,8 +340,7 @@ export const route: Route = {
 | [国产电影](https://www.hao6v.me/s/guochandianying/)  | [s/guochandianying](https://rsshub.app/6v123/s/guochandianying)   |
 | [欧洲电影](https://www.hao6v.me/s/xijudianying/)     | [s/xijudianying](https://rsshub.app/6v123/s/xijudianying)         |
 
-</details>
-`,
+</details>`,
     categories: ['multimedia'],
     features: {
         requireConfig: false,

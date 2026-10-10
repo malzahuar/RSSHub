@@ -1,9 +1,12 @@
-import ofetch from '@/utils/ofetch';
-import * as cheerio from 'cheerio';
-import { parseDate } from '@/utils/parse-date';
 import crypto from 'node:crypto';
+
+import { load } from 'cheerio';
+
 import cache from '@/utils/cache';
-import { Category, Collection, Tag } from './types';
+import ofetch from '@/utils/ofetch';
+import { parseDate } from '@/utils/parse-date';
+
+import type { Category, Collection, Tag } from './types';
 
 const b64tou8a = (str) => Uint8Array.from(Buffer.from(str, 'base64'));
 const b64tohex = (str) => Buffer.from(str, 'base64').toString('hex');
@@ -14,7 +17,21 @@ const s256 = (s1: Uint8Array, s2: string) => {
     return sha.digest('hex');
 };
 
-const solveWafChallenge = (cs) => {
+/**
+ * Solve _wafchallengeid
+ *
+ * `v` is the server-authored envelope that the signature covers:
+ * - `a` is the hash prefix. It is bound to the client rather than random per challenge.
+ * - `b` is the issue time, in unix seconds.
+ * - `c` is the target digest, sha256 of `a` concatenated with the ASCII decimal of an `n` the server picked. Recovering `n` is the work, and it is usually below 10.
+ * - `s` is a signature over `v` under a server-side key.
+ *
+ * Solving appends `d`, the base64 of the decimal `n`.
+ *
+ * @param cs - base64 encoded challenge string {"v":{"a":"...", "b":"timestamp", "c":"..."}, "s":"..."}
+ * @returns base64 encoded solved challenge string {"v":{"a":"...", "b":"timestamp", "c":"..."}, "s":"...", "d":"solution"}
+ */
+export const solveWafChallenge = (cs: string) => {
     const c = JSON.parse(Buffer.from(cs, 'base64').toString());
     const prefix = b64tou8a(c.v.a);
     const expect = b64tohex(c.v.c);
@@ -30,18 +47,18 @@ const solveWafChallenge = (cs) => {
 };
 
 export const generateUuid = () => {
-    const e = (t) => (t ? (t ^ ((16 * 0.5) >> (t / 4))).toString(10) : '10000000-1000-4000-8000-100000000000'.replaceAll(/[018]/g, e));
+    const e = (t?) => (t ? (t ^ ((16 * 0.5) >> (t / 4))).toString(10) : '10000000-1000-4000-8000-100000000000'.replaceAll(/[018]/g, (c) => e(c)));
     return e().replaceAll('-', '').slice(0, 19);
 };
 
 export const getArticle = async (link) => {
     let response = await ofetch(link);
-    let $ = cheerio.load(response);
+    let $ = load(response);
     if ($('script').text().includes('_wafchallengeid')) {
         const cs = $('script:contains("_wafchallengeid")')
             .text()
             .match(/cs="(.*?)",c/)?.[1];
-        const cookie = solveWafChallenge(cs);
+        const cookie = solveWafChallenge(cs!);
 
         response = await ofetch(link, {
             headers: {
@@ -49,7 +66,7 @@ export const getArticle = async (link) => {
             },
         });
 
-        $ = cheerio.load(response);
+        $ = load(response);
     }
 
     return $('.article-viewer').html();
@@ -96,35 +113,35 @@ export const ProcessFeed = (list) =>
 
 export const getCategoryBrief = () =>
     cache.tryGet('juejin:categoryBriefs', async () => {
-        const response = await ofetch('https://api.juejin.cn/tag_api/v1/query_category_briefs');
+        const response = await ofetch<{ data: Category[] }>('https://api.juejin.cn/tag_api/v1/query_category_briefs');
         return response.data;
-    }) as Promise<Category[]>;
+    });
 
 export const getCollection = (collectionId) =>
     cache.tryGet(`juejin:collectionId:${collectionId}`, async () => {
-        const response = await ofetch('https://api.juejin.cn/interact_api/v1/collectionSet/get', {
+        const response = await ofetch<{ data: Collection }>('https://api.juejin.cn/interact_api/v1/collectionSet/get', {
             query: {
                 tag_id: collectionId,
                 cursor: 0,
             },
         });
         return response.data;
-    }) as Promise<Collection>;
+    });
 
 export const getTag = (tag) =>
     cache.tryGet(`juejin:tag:${tag}`, async () => {
-        const response = await ofetch('https://api.juejin.cn/tag_api/v1/query_tag_detail', {
+        const response = await ofetch<{ data: { tag_id: string; tag: Tag } }>('https://api.juejin.cn/tag_api/v1/query_tag_detail', {
             method: 'POST',
             body: {
                 key_word: tag,
             },
         });
         return response.data;
-    }) as Promise<{ tag_id: string; tag: Tag }>;
+    });
 
 export const getTagList = () =>
     cache.tryGet('juejin:tagList', async () => {
-        const response = await ofetch('https://api.juejin.cn/tag_api/v1/query_tag_list', {
+        const response = await ofetch<{ data: Array<{ tag_id: string; tag: Tag }> }>('https://api.juejin.cn/tag_api/v1/query_tag_list', {
             method: 'POST',
             body: {
                 key_word: '',
@@ -136,4 +153,4 @@ export const getTagList = () =>
             },
         });
         return response.data;
-    }) as Promise<{ tag_id: string; tag: Tag }[]>;
+    });
